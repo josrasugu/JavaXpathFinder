@@ -23,8 +23,13 @@ import java.util.List;
 import java.time.temporal.ChronoUnit;
 
 public class xpathController {
+    public static String mysqlUrl = "jdbc:mysql://localhost:3306/ui_changes_tracking";
+    public static String user = "root";
+    public static String password = "";
     public static WebDriver driver;
     public static WebElement fetchedItem;
+    public static String url;
+    public static String path;
 
     public static boolean checkXPath(String xpath) {
         Duration durationTime = Duration.of(100, ChronoUnit.MILLIS);
@@ -108,10 +113,7 @@ public class xpathController {
 
 
     public static void xpathProcess() {
-        String mysqlUrl = "jdbc:mysql://localhost:3306/ui_changes_tracking";
-        String user = "root";
-        String password = "";
-        String mappedXPath = "/html/body/div[1]/div/div[2]/div[2]/div[2]/div/ul/li[3]/a";
+        String mappedXPath = path;
         Xpath dbResult = new Xpath();
         String SQL_SELECT = "Select * from Xpath";
 
@@ -134,7 +136,6 @@ public class xpathController {
                     // Timestamp -> LocalDateTime
                 }
             System.out.println(dbResult.pathText);
-//            System.out.println("Connected to the database!!!");
         } catch (Exception e) {
             System.out.println("Connection issue :-(");
         }
@@ -143,16 +144,7 @@ public class xpathController {
         ChromeOptions chromeOptions = new ChromeOptions();
         chromeOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
         driver = new ChromeDriver(chromeOptions);
-        driver.get("http://localhost/bpo_ticketing/dashboard.php?content=report&report=all");
-/*
-        if (checkXPath(mappedXPath)) {
-            String XPathInnerHTML = XPathFetchHTML(mappedXPath);
-            String XPathText = XPathFetchText(mappedXPath);
-            System.out.println("XPATH Found");
-        } else {
-            System.out.println("XPATH Not Found");
-        }
-*/
+        driver.get(url);
         String davedPath = dbResult.path;
         String[] splitPath = davedPath.split("/");
         String[] fArray = davedPath.split("/");
@@ -251,13 +243,9 @@ public class xpathController {
 
                 double wordDiff = checkWordDifference(XPathFetchText(), dbResult.pathText);
                 xpfPathScore.add(pathScore + htmlScore + wordDiff);
-//                System.out.println("XPATH Found");
-//                System.out.println(pathScore);
-//                System.out.println(htmlScore);
-//                System.out.println(wordDiff);
+
             } else {
                 xpfPathScore.add(0.0);
-//                System.out.println("XPATH Not Found");
             }
             xpfCount++;
         }
@@ -286,10 +274,8 @@ public class xpathController {
                 }
                 double wordDiff = checkWordDifference(XPathFetchText(), dbResult.pathText);
                 xpbPathScore.add(pathScore + htmlScore + wordDiff);
-//                System.out.println("XPATH Found");
             } else {
                 xpbPathScore.add(0.0);
-//                System.out.println("XPATH Not Found");
             }
             xpbCount++;
         }
@@ -325,5 +311,42 @@ public class xpathController {
         WebDriverWait wait = new WebDriverWait(driver, durationTime);
         WebElement searchItem = wait.until(ExpectedConditions.elementToBeClickable(By.xpath(joinedPath.get(finalIndex))));
         searchItem.click();
+    }
+
+    public static void addXpath(){
+        String pathOuterHtml = "";
+        String pathText = "";
+        Boolean savePath;
+        System.setProperty("webdriver.chrome.driver", "C:/projects/aws-products/chromedriver.exe");
+        ChromeOptions chromeOptions = new ChromeOptions();
+        chromeOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
+        driver = new ChromeDriver(chromeOptions);
+        driver.get(url);
+
+        if (checkXPath(path)) {
+            pathOuterHtml = XPathFetchHTML();
+            pathText = XPathFetchText();
+            savePath = Boolean.TRUE;
+            System.out.println(pathOuterHtml);
+            System.out.println(pathText);
+        } else {
+            savePath = Boolean.FALSE;
+        }
+        if (savePath){
+            String SQL_SELECT = "INSERT INTO xpath(url, path, path_outer_html, path_text) VALUES (?, ?, ?, ?)";
+            try {
+                Class.forName("com.mysql.cj.jdbc.Driver");
+                Connection connection = DriverManager.getConnection(mysqlUrl, user, password);
+                PreparedStatement preparedStatement = connection.prepareStatement(SQL_SELECT);
+                preparedStatement.setString(1, url);
+                preparedStatement.setString(2, path);
+                preparedStatement.setString(3, pathOuterHtml);
+                preparedStatement.setString(3, pathText);
+                preparedStatement.executeQuery();
+                System.out.println("Path Successfully added");
+            } catch (Exception e) {
+                System.out.println("Issue with the url and path submitted. Please check and try again");
+            }
+        }
     }
 }
